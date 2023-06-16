@@ -21,9 +21,9 @@ class EventViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
     private val itemDay: TextView = itemView.findViewById(R.id.textViewDay)
     private val itemDate: TextView = itemView.findViewById(R.id.textViewDate)
     private var context: Context? = null
-    private val recyclerView: RecyclerView = itemView.findViewById(R.id.agenda_event_recycler_view)
+    private val recyclerView: RecyclerView = itemView.findViewById(R.id.event_recycler_view)
     private val layoutManager: LinearLayoutManager = LinearLayoutManager(itemView.context)
-    private var adapter: EventRecyclerAdapter? = null
+    private var adapter: EventsRecyclerAdapter? = null
 
     constructor(context: Context, v: View) : this(v) {
         this.context = context
@@ -58,7 +58,7 @@ class EventViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         for (i in results.indices) {
             events.add(results[i])
         }
-        adapter = EventRecyclerAdapter(context!!, events, object : OnItemClickListener {
+        adapter = EventsRecyclerAdapter(context!!, events, object : OnItemClickListener {
             override fun onItemClick(item: EventObject) {
                 val intent = Intent(context, ViewEventActivity::class.java)
                 intent.putExtra("id", item.id)
