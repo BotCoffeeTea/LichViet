@@ -1,2 +1,2 @@
 # LunarCalendar
-Vietnamese Lunar Calendar android application
+Vietnamese Lunar Calendar android applicat
