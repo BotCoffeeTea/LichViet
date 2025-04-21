@@ -1,0 +1,1395 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lịch Vạn Niên Việt Nam</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .calendar-container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+        .calendar {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
+        .calendar-grid div {
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .calendar-grid .solar-date {
+            font-weight: bold;
+        }
+        .calendar-grid .lunar-date {
+            font-size: 0.8em;
+            color: #555;
+        }
+        .calendar-grid .special-lunar-date {
+            color: red;
+            font-weight: bold;
+        }
+        .calendar-grid .current-day {
+            background-color: #007bff;
+            color: white;
+        }
+        .calendar-grid .other-month {
+            color: #aaa;
+            background-color: #f8f8f8;
+        }
+        .details {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .details h3 {
+            margin-top: 0;
+        }
+        .event-section {
+            margin-top: 20px;
+        }
+        .event-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        .event-item button {
+            margin-left: 5px;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .event-item button:first-child {
+            background-color: #007bff;
+            color: white;
+        }
+        .event-item button:last-child {
+            background-color: #dc3545;
+            color: white;
+        }
+        .days-left {
+            color: #007bff;
+            font-style: italic;
+        }
+        select, button {
+            padding: 8px;
+            margin: 0 5px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            cursor: pointer;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #eventInput {
+            padding: 8px;
+            width: 70%;
+            margin-right: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        @media (max-width: 768px) {
+            .calendar-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="calendar-container">
+        <div class="calendar">
+            <div class="calendar-header">
+                <button id="prevMonth">&lt;</button>
+                <select id="monthSelect"></select>
+                <select id="yearSelect"></select>
+                <button id="nextMonth">&gt;</button>
+                <button id="today">Hôm nay</button>
+            </div>
+            <div class="calendar-grid" id="calendarDays">
+                <!-- Calendar days will be generated here -->
+            </div>
+            <div class="event-section">
+                <h3>Thêm sự kiện</h3>
+                <input type="text" id="eventInput" placeholder="Nhập sự kiện mới">
+                <button id="addEvent">Thêm</button>
+            </div>
+        </div>
+        <div class="details">
+            <h3>Thông tin chi tiết</h3>
+            <p><strong>Dương lịch:</strong> <span id="gregorianDate"></span></p>
+            <p><strong>Âm lịch:</strong> <span id="lunarDate"></span></p>
+            <p><strong>Can chi:</strong></p>
+            <div id="canChi"></div>
+            <p><strong>Tiết khí:</strong> <span id="solarTerm"></span></p>
+            <p><strong>Ngày:</strong> <span id="dayType"></span></p>
+            <p><strong>Nhị thập bát tú:</strong></p>
+            <div id="mansionInfo"></div>
+            <p><strong>Giờ hoàng đạo:</strong> <span id="auspiciousHours"></span></p>
+            <p><strong>Sao tốt/xấu:</strong></p>
+            <div id="stars"></div>
+            <p><strong>Hướng tốt:</strong> <span id="directions"></span></p>
+            <p><strong>Tuổi hợp/khắc:</strong></p>
+            <div id="zodiac"></div>
+            <div class="event-section">
+                <h3>Sự kiện dương lịch</h3>
+                <div id="solarEventList"></div>
+                <h3>Sự kiện âm lịch</h3>
+                <div id="lunarEventList"></div>
+                <h3>Sự kiện sắp tới</h3>
+                <div id="upcomingEventList"></div>
+            </div>
+        </div>
+    </div>
+
+   <script>
+// Data structures and utilities
+const CAN = ['Giáp', 'Ất', 'Bính', 'Đinh', 'Mậu', 'Kỷ', 'Canh', 'Tân', 'Nhâm', 'Quý'];
+const CHI = ['Tý', 'Sửu', 'Dần', 'Mão', 'Thìn', 'Tỵ', 'Ngọ', 'Mùi', 'Thân', 'Dậu', 'Tuất', 'Hợi'];
+
+// Current date state
+let currentDate = new Date();
+
+// Hàm tiện ích cơ bản
+function INT(d) {
+    return Math.floor(d);
+}
+
+function getLocalTimezone() {
+    return -(new Date().getTimezoneOffset() / 60);
+}
+
+// Hàm tính toán Julian Day
+function jdFromDate(day, month, year) {
+    const a = INT((14 - month) / 12);
+    const y = year + 4800 - a;
+    const m = month + 12 * a - 3;
+
+    let jd = day + INT((153 * m + 2) / 5) + 365 * y + INT(y / 4) - INT(y / 100) + INT(y / 400) - 32045;
+    if (jd < 2299161) {
+        jd = day + INT((153 * m + 2) / 5) + 365 * y + INT(y / 4) - 32083;
+    }
+
+    return jd;
+}
+
+function jdToDate(jd) {
+    let a, b, c;
+
+    if (jd > 2299160) {
+        a = jd + 32044;
+        b = INT((4 * a + 3) / 146097);
+        c = a - INT((b * 146097) / 4);
+    } else {
+        b = 0;
+        c = jd + 32082;
+    }
+
+    const d = INT((4 * c + 3) / 1461);
+    const e = c - INT((1461 * d) / 4);
+    const m = INT((5 * e + 2) / 153);
+    const day = e - INT((153 * m + 2) / 5) + 1;
+    const month = m + 3 - 12 * INT(m / 10);
+    const year = b * 100 + d - 4800 + INT(m / 10);
+
+    return new Date(year, month - 1, day);
+}
+
+// Hàm tính toán kinh độ mặt trời
+function sunLongitude(jdn) {
+    const PI = Math.PI;
+    const T = (jdn - 2451545.0) / 36525;
+    const T2 = T * T;
+    const dr = PI / 180;
+    const M = 357.52910 + 35999.05030 * T - 0.0001559 * T2 - 0.00000048 * T * T2;
+    const L0 = 280.46645 + 36000.76983 * T + 0.0003032 * T2;
+
+    let DL = (1.914600 - 0.004817 * T - 0.000014 * T2) * Math.sin(dr * M);
+    DL += (0.019993 - 0.000101 * T) * Math.sin(dr * 2 * M) + 0.000290 * Math.sin(dr * 3 * M);
+
+    let L = L0 + DL;
+    L = L * dr;
+    L = L - PI * 2 * (INT(L / (PI * 2)));
+
+    return L;
+}
+
+function getSunLongitude(jdn, timezone) {
+    return INT(sunLongitude(jdn - 0.5 - timezone / 24) / Math.PI * 6);
+}
+
+// Hàm tính toán trăng mới
+function NewMoon(k) {
+    const PI = Math.PI;
+    const T = k / 1236.85;
+    const T2 = T * T;
+    const T3 = T2 * T;
+    const dr = PI / 180;
+
+    let Jd1 = 2415020.75933 + 29.53058868 * k + 0.0001178 * T2 - 0.000000155 * T3;
+    Jd1 += 0.00033 * Math.sin((166.56 + 132.87 * T - 0.009173 * T2) * dr);
+
+    const M = 359.2242 + 29.10535608 * k - 0.0000333 * T2 - 0.00000347 * T3;
+    const Mpr = 306.0253 + 385.81691806 * k + 0.0107306 * T2 + 0.00001236 * T3;
+    const F = 21.2964 + 390.67050646 * k - 0.0016528 * T2 - 0.00000239 * T3;
+
+    let C1 = (0.1734 - 0.000393 * T) * Math.sin(M * dr) + 0.0021 * Math.sin(2 * dr * M);
+    C1 -= 0.4068 * Math.sin(Mpr * dr) + 0.0161 * Math.sin(dr * 2 * Mpr);
+    C1 -= 0.0004 * Math.sin(dr * 3 * Mpr);
+    C1 += 0.0104 * Math.sin(dr * 2 * F) - 0.0051 * Math.sin(dr * (M + Mpr));
+    C1 -= 0.0074 * Math.sin(dr * (M - Mpr)) + 0.0004 * Math.sin(dr * (2 * F + M));
+    C1 -= 0.0004 * Math.sin(dr * (2 * F - M)) - 0.0006 * Math.sin(dr * (2 * F + Mpr));
+    C1 += 0.0010 * Math.sin(dr * (2 * F - Mpr)) + 0.0005 * Math.sin(dr * (2 * Mpr + M));
+
+    let deltat;
+    if (T < -11) {
+        deltat = 0.001 + 0.000839 * T + 0.0002261 * T2 - 0.00000845 * T3 - 0.000000081 * T * T3;
+    } else {
+        deltat = -0.000278 + 0.000265 * T + 0.000262 * T2;
+    }
+
+    return Jd1 + C1 - deltat;
+}
+
+function getNewMoon(k, timezone) {
+    return INT(NewMoon(k) + 0.5 + timezone / 24);
+}
+
+// Hàm tính ngày bắt đầu năm âm lịch
+function getLunarYearStart(year, timezone) {
+    let k = INT((jdFromDate(1, 2, year) - 2415021.076998695) / 29.530588853);
+    let jdNewMoon = getNewMoon(k, timezone);
+    let sunLong = getSunLongitude(jdNewMoon, timezone);
+
+    if (sunLong >= 18) {
+        jdNewMoon = getNewMoon(k - 1, timezone);
+    }
+
+    return jdNewMoon;
+}
+
+// Hàm tính tháng nhuận
+function getLeapMonth(year, timezone) {
+    let k, jd, sunLong, nm;
+
+    let a11 = getLunarYearStart(year, timezone);
+    let b11 = getLunarYearStart(year + 1, timezone);
+
+    let lunarMonths = 12;
+    let leapMonth = 0;
+    let leap = false;
+
+    k = INT((a11 - 2415021.076998695) / 29.530588853);
+    let nm2 = getNewMoon(k, timezone);
+
+    let monthCount = 0;
+    while (nm2 < b11) {
+        monthCount++;
+        k++;
+        nm2 = getNewMoon(k, timezone);
+    }
+
+    if (monthCount > 12) {
+        lunarMonths = 13;
+        leap = true;
+    }
+
+    if (leap) {
+        k = INT((a11 - 2415021.076998695) / 29.530588853);
+        let nm1 = getNewMoon(k, timezone);
+        let last = 0;
+        let i = 1;
+
+        while (nm1 < b11 && i <= lunarMonths) {
+            let nm2 = getNewMoon(k + 1, timezone);
+            sunLong = getSunLongitude(nm2, timezone);
+
+            if (sunLong % 2 === 0 && last === 0) {
+                leapMonth = i;
+                last = 1;
+            }
+
+            nm1 = nm2;
+            k++;
+            i++;
+        }
+    }
+
+    return {
+        hasLeap: leap,
+        leapMonth: leapMonth
+    };
+}
+
+// Hàm tính ngày âm lịch
+function getLunarDate(solarDate) {
+    const timezone = getLocalTimezone();
+    const jd = jdFromDate(solarDate.getDate(), solarDate.getMonth() + 1, solarDate.getFullYear());
+
+    let k = INT((jd - 2415021.076998695) / 29.530588853);
+    let nm = getNewMoon(k, timezone);
+    let lunarYear = solarDate.getFullYear();
+
+    if (nm > jd) {
+        k--;
+        nm = getNewMoon(k, timezone);
+    }
+
+    let yearStart = getLunarYearStart(lunarYear, timezone);
+    if (jd < yearStart) {
+        lunarYear--;
+        yearStart = getLunarYearStart(lunarYear, timezone);
+    }
+
+    const leapInfo = getLeapMonth(lunarYear, timezone);
+    let lunarMonth = 0;
+    let lunarDay = 0;
+    let isLeapMonth = false;
+
+    k = INT((yearStart - 2415021.076998695) / 29.530588853);
+    let nm1 = getNewMoon(k, timezone);
+    let monthCount = 1;
+    let leapMonthProcessed = false;
+
+    while (nm1 <= jd) {
+        let nm2 = getNewMoon(k + 1, timezone);
+        let sunLong = getSunLongitude(nm2, timezone);
+
+        if (leapInfo.hasLeap && leapInfo.leapMonth === monthCount && !leapMonthProcessed) {
+            if (jd < nm2) {
+                lunarMonth = monthCount;
+                isLeapMonth = true;
+                lunarDay = jd - nm1 + 1;
+                break;
+            }
+            leapMonthProcessed = true;
+            nm1 = nm2;
+            k++;
+            nm2 = getNewMoon(k + 1, timezone);
+        }
+
+        if (jd < nm2) {
+            lunarMonth = monthCount;
+            lunarDay = jd - nm1 + 1;
+            break;
+        }
+
+        nm1 = nm2;
+        k++;
+        monthCount++;
+    }
+
+    return {
+        year: lunarYear,
+        month: lunarMonth,
+        day: lunarDay,
+        isLeap: isLeapMonth
+    };
+}
+
+// Initialize application
+function initializeApp() {
+    setupMonthYearSelects();
+    setupEventListeners();
+    updateDisplay();
+    loadEvents();
+}
+
+// Event listeners setup
+function setupMonthYearSelects() {
+    const monthSelect = document.getElementById('monthSelect');
+    const yearSelect = document.getElementById('yearSelect');
+
+    const months = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
+        'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'
+    ];
+    months.forEach((month, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = month;
+        monthSelect.appendChild(option);
+    });
+
+    for (let year = 1800; year <= 2199; year++) {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        yearSelect.appendChild(option);
+    }
+
+    monthSelect.value = currentDate.getMonth();
+    yearSelect.value = currentDate.getFullYear();
+}
+
+function setupEventListeners() {
+    document.getElementById('prevMonth').addEventListener('click', () => navigateMonth(-1));
+    document.getElementById('nextMonth').addEventListener('click', () => navigateMonth(1));
+    document.getElementById('today').addEventListener('click', () => {
+        currentDate = new Date();
+        updateDisplay();
+        updateMonthYearSelects();
+    });
+    document.getElementById('addEvent').addEventListener('click', addEvent);
+
+    document.getElementById('monthSelect').addEventListener('change', (e) => {
+        currentDate.setMonth(parseInt(e.target.value));
+        updateDisplay();
+    });
+
+    document.getElementById('yearSelect').addEventListener('change', (e) => {
+        currentDate.setFullYear(parseInt(e.target.value));
+        updateDisplay();
+    });
+}
+
+function updateMonthYearSelects() {
+    document.getElementById('monthSelect').value = currentDate.getMonth();
+    document.getElementById('yearSelect').value = currentDate.getFullYear();
+}
+
+// Navigation functions
+function navigateMonth(delta) {
+    const currentDay = currentDate.getDate();
+    currentDate.setMonth(currentDate.getMonth() + delta);
+
+    const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+    currentDate.setDate(Math.min(currentDay, lastDayOfMonth));
+
+    updateDisplay();
+    updateMonthYearSelects();
+}
+
+// Display update functions
+function generateCalendar(date) {
+    const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+    const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    const startDay = firstDay.getDay();
+    const totalDays = lastDay.getDate();
+
+    const calendarDays = document.getElementById('calendarDays');
+    calendarDays.innerHTML = '';
+
+    const prevMonthLastDay = new Date(date.getFullYear(), date.getMonth(), 0).getDate();
+    for (let i = startDay - 1; i >= 0; i--) {
+        const dayDiv = document.createElement('div');
+        dayDiv.textContent = prevMonthLastDay - i;
+        dayDiv.className = 'other-month';
+        calendarDays.appendChild(dayDiv);
+    }
+
+    for (let i = 1; i <= totalDays; i++) {
+        const dayDiv = document.createElement('div');
+        const cellDate = new Date(date.getFullYear(), date.getMonth(), i);
+        const lunarDate = getLunarDate(cellDate);
+
+        const solarDiv = document.createElement('div');
+        solarDiv.textContent = i;
+        solarDiv.className = 'solar-date';
+
+        const lunarDiv = document.createElement('div');
+        lunarDiv.textContent = `${lunarDate.day}/${lunarDate.month}${lunarDate.isLeap ? 'N' : ''}`;
+        lunarDiv.className = 'lunar-date';
+
+        if (lunarDate.day === 1 || lunarDate.day === 15) {
+            lunarDiv.classList.add('special-lunar-date');
+        }
+
+        if (i === date.getDate() &&
+            date.getMonth() === currentDate.getMonth() &&
+            date.getFullYear() === currentDate.getFullYear()) {
+            dayDiv.className = 'current-day';
+        }
+
+        dayDiv.appendChild(solarDiv);
+        dayDiv.appendChild(lunarDiv);
+
+        dayDiv.addEventListener('click', () => {
+            currentDate.setDate(i);
+            updateDisplay();
+        });
+
+        if (lunarDate.day === 1) {
+            const events = JSON.parse(localStorage.getItem('events') || '[]');
+            events.push({
+                text: 'Mùng 1 âm lịch',
+                date: cellDate.toISOString(),
+                type: 'lunar'
+            });
+            localStorage.setItem('events', JSON.stringify(events));
+        } else if (lunarDate.day === 15) {
+            const events = JSON.parse(localStorage.getItem('events') || '[]');
+            events.push({
+                text: 'Ngày rằm',
+                date: cellDate.toISOString(),
+                type: 'lunar'
+            });
+            localStorage.setItem('events', JSON.stringify(events));
+        }
+
+        calendarDays.appendChild(dayDiv);
+    }
+
+    const remainingDays = 42 - (startDay + totalDays);
+    for (let i = 1; i <= remainingDays; i++) {
+        const dayDiv = document.createElement('div');
+        dayDiv.textContent = i;
+        dayDiv.className = 'other-month';
+        calendarDays.appendChild(dayDiv);
+    }
+}
+
+function updateDisplay() {
+    generateCalendar(currentDate);
+    updateGregorianDate();
+    updateLunarDate();
+    updateCanChi();
+    updateSolarTerm();
+    updateDayType();
+    updateMansionInfo();
+    updateAuspiciousHours();
+    updateStars();
+    updateDirections();
+    updateZodiac();
+    loadEvents();
+}
+
+function updateGregorianDate() {
+    const options = {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    };
+    document.getElementById('gregorianDate').textContent = currentDate.toLocaleDateString('vi-VN', options);
+}
+
+function updateLunarDate() {
+    const lunar = getLunarDate(currentDate);
+    let lunarText = `Ngày ${lunar.day} tháng ${lunar.month}`;
+    if (lunar.isLeap) {
+        lunarText += " (Nhuận)";
+    }
+    lunarText += ` năm ${lunar.year}`;
+    document.getElementById('lunarDate').textContent = lunarText;
+}
+
+function getCanChi(date) {
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+
+    const yearCan = CAN[(year - 4) % 10];
+    const yearChi = CHI[(year - 4) % 12];
+    const monthCan = CAN[(year * 2 + month + 3) % 10];
+    const monthChi = CHI[(month + 1) % 12];
+    const dayCan = CAN[(Math.floor(date / 1000000) + day + 9) % 10];
+    const dayChi = CHI[(day + 1) % 12];
+
+    return {
+        year: `${yearCan} ${yearChi}`,
+        month: `${monthCan} ${monthChi}`,
+        day: `${dayCan} ${dayChi}`
+    };
+}
+
+function updateCanChi() {
+    const canChi = getCanChi(currentDate);
+    document.getElementById('canChi').innerHTML = `
+        <p>Ngày: ${canChi.day}</p>
+        <p>Tháng: ${canChi.month}</p>
+        <p>Năm: ${canChi.year}</p>
+    `;
+}
+
+const SOLAR_TERMS = [
+    'Xuân phân', 'Thanh minh', 'Cốc vũ', 'Lập hạ',
+    'Tiểu mãn', 'Mang chủng', 'Hạ chí', 'Tiểu thử',
+    'Đại thử', 'Lập thu', 'Xử thử', 'Bạch lộ',
+    'Thu phân', 'Hàn lộ', 'Sương giáng', 'Lập đông',
+    'Tiểu tuyết', 'Đại tuyết', 'Đông chí', 'Tiểu hàn',
+    'Đại hàn', 'Lập xuân', 'Vũ thủy', 'Kinh trập'
+];
+
+function getSolarTerm(date) {
+    const month = date.getMonth();
+    const day = date.getDate();
+    const termIndex = (month * 2 + Math.floor(day / 15)) % 24;
+    return SOLAR_TERMS[termIndex];
+}
+
+function updateSolarTerm() {
+    document.getElementById('solarTerm').textContent = getSolarTerm(currentDate);
+}
+
+function getDayType(date) {
+    const lunar = getLunarDate(date);
+    return lunar.day % 2 === 1 ? 'Hoàng đạo' : 'Hắc đạo';
+}
+
+function updateDayType() {
+    document.getElementById('dayType').textContent = getDayType(currentDate);
+}
+
+const MANSIONS = [
+    // Thanh Long (Azure Dragon) constellation
+    {
+        name: 'Giác Mộc Giáo',
+        constellation: 'Thanh Long',
+        element: 'Mộc',
+        good: 'Xây dựng, khai trương',
+        bad: 'Di chuyển, cưới hỏi'
+    },
+    {
+        name: 'Cang Kim Long',
+        constellation: 'Thanh Long',
+        element: 'Kim',
+        good: 'Cầu tài, khai trương',
+        bad: 'Động thổ, an táng'
+    },
+    {
+        name: 'Đê Thủy Bính',
+        constellation: 'Thanh Long',
+        element: 'Thủy',
+        good: 'Cầu phúc, giải trừ',
+        bad: 'Xuất hành, giá thú'
+    },
+    {
+        name: 'Phòng Nhật Thố',
+        constellation: 'Thanh Long',
+        element: 'Nhật',
+        good: 'Tu tạo,營造',
+        bad: 'Xuất hành, di cư'
+    },
+    {
+        name: 'Tâm Nguyệt Hồ',
+        constellation: 'Thanh Long',
+        element: 'Nguyệt',
+        good: 'Cầu tài, khai trương',
+        bad: 'Động thổ, an táng'
+    },
+    {
+        name: 'Vĩ Hỏa Hổ',
+        constellation: 'Thanh Long',
+        element: 'Hỏa',
+        good: 'Giá thú, nhập trạch',
+        bad: 'Mai táng, động thổ'
+    },
+    {
+        name: 'Cơ Thổ Bức',
+        constellation: 'Thanh Long',
+        element: 'Thổ',
+        good: 'Tu tạo, doanh thương',
+        bad: 'Xuất hành, giá thú'
+    },
+ 
+    // Huyền Vũ (Black Tortoise) constellation
+    {
+        name: 'Đẩu Mộc Giải',
+        constellation: 'Huyền Vũ',
+        element: 'Mộc',
+        good: 'Tế tự, cầu phúc',
+        bad: 'Động thổ, khai trương'
+    },
+    {
+        name: 'Ngưu Kim Ngưu',
+        constellation: 'Huyền Vũ',
+        element: 'Kim',
+        good: 'Tu tạo, nhập trạch',
+        bad: 'Xuất hành, giá thú'
+    },
+    {
+        name: 'Nữ Thổ Xà',
+        constellation: 'Huyền Vũ',
+        element: 'Thổ',
+        good: 'Cầu tài, khai trương',
+        bad: 'Mai táng, động thổ'
+    },
+    {
+        name: 'Hư Nhật Thử',
+        constellation: 'Huyền Vũ',
+        element: 'Nhật',
+        good: 'Tế tự, cầu phúc',
+        bad: 'Giá thú, xuất hành'
+    },
+    {
+        name: 'Nguy Hỏa Báo',
+        constellation: 'Huyền Vũ',
+        element: 'Hỏa',
+        good: 'Tu tạo, doanh thương',
+        bad: 'Động thổ, an táng'
+    },
+    {
+        name: 'Thất Thủy Trư',
+        constellation: 'Huyền Vũ',
+        element: 'Thủy',
+        good: 'Cầu tài, khai trương',
+        bad: 'Mai táng, xuất hành'
+    },
+    {
+        name: 'Bích Mộc Dực',
+        constellation: 'Huyền Vũ',
+        element: 'Mộc',
+        good: 'Tu tạo, nhập trạch',
+        bad: 'Giá thú, xuất hành'
+    },
+ 
+    // Bạch Hổ (White Tiger) constellation
+    {
+        name: 'Khuê Kim Lâu',
+        constellation: 'Bạch Hổ',
+        element: 'Kim',
+        good: 'Tế tự, cầu phúc',
+        bad: 'Động thổ, an táng'
+    },
+    {
+        name: 'Lâu Thủy Lạc',
+        constellation: 'Bạch Hổ',
+        element: 'Thủy',
+        good: 'Tu tạo, doanh thương',
+        bad: 'Xuất hành, giá thú'
+    },
+    {
+        name: 'Vị Thổ Cẩu',
+        constellation: 'Bạch Hổ',
+        element: 'Thổ',
+        good: 'Cầu tài, khai trương',
+        bad: 'Mai táng, động thổ'
+    },
+    {
+        name: 'Mão Nhật Thố',
+        constellation: 'Bạch Hổ',
+        element: 'Nhật',
+        good: 'Tế tự, cầu phúc',
+        bad: 'Giá thú, xuất hành'
+    },
+    {
+        name: 'Tất Nguyệt Yển',
+        constellation: 'Bạch Hổ',
+        element: 'Nguyệt',
+        good: 'Tu tạo, doanh thương',
+        bad: 'Động thổ, an táng'
+    },
+    {
+        name: 'Chủy Hỏa Hầu',
+        constellation: 'Bạch Hổ',
+        element: 'Hỏa',
+        good: 'Cầu tài, khai trương',
+        bad: 'Mai táng, xuất hành'
+    },
+    {
+        name: 'Sâm Thủy Ngưu',
+        constellation: 'Bạch Hổ',
+        element: 'Thủy',
+        good: 'Tu tạo, nhập trạch',
+        bad: 'Giá thú, xuất hành'
+    },
+ 
+    // Chu Tước (Vermillion Bird) constellation
+    {
+        name: 'Tỉnh Mộc Đức',
+        constellation: 'Chu Tước',
+        element: 'Mộc',
+        good: 'Tế tự, cầu phúc',
+        bad: 'Động thổ, an táng'
+    },
+    {
+        name: 'Quỷ Kim Dương',
+        constellation: 'Chu Tước',
+        element: 'Kim',
+        good: 'Tu tạo, doanh thương',
+        bad: 'Xuất hành, giá thú'
+    },
+    {
+        name: 'Liễu Thổ Dương',
+        constellation: 'Chu Tước',
+        element: 'Thổ',
+        good: 'Cầu tài, khai trương',
+        bad: 'Mai táng, động thổ'
+    },
+    {
+        name: 'Tinh Nhật Mã',
+        constellation: 'Chu Tước',
+        element: 'Nhật',
+        good: 'Tế tự, cầu phúc',
+        bad: 'Giá thú, xuất hành'
+    },
+    {
+        name: 'Trương Nguyệt Lộc',
+        constellation: 'Chu Tước',
+        element: 'Nguyệt',
+        good: 'Tu tạo, doanh thương',
+        bad: 'Động thổ, an táng'
+    },
+    {
+        name: 'Dực Hỏa Xà',
+        constellation: 'Chu Tước',
+        element: 'Hỏa',
+        good: 'Cầu tài, khai trương',
+        bad: 'Mai táng, xuất hành'
+    },
+    {
+        name: 'Chẩn Thủy Giải',
+        constellation: 'Chu Tước',
+        element: 'Thủy',
+        good: 'Tu tạo, nhập trạch',
+        bad: 'Giá thú, xuất hành'
+    }
+];
+
+function getMansion(date) {
+    const lunar = getLunarDate(date);
+    return MANSIONS[lunar.day % MANSIONS.length];
+}
+
+function updateMansionInfo() {
+    const mansion = getMansion(currentDate);
+    document.getElementById('mansionInfo').innerHTML = `
+        <p>Sao: ${mansion.name}</p>
+        <p>Chòm sao: ${mansion.constellation}</p>
+        <p>Ngũ hành: ${mansion.element}</p>
+        <p>Tốt cho: ${mansion.good}</p>
+        <p>Không nên: ${mansion.bad}</p>
+    `;
+}
+
+function getAuspiciousHours(date) {
+    const lunar = getLunarDate(date);
+    const dayChiIndex = (lunar.day - 1) % 12;
+    const hours = [{
+            hour: 'Tý',
+            time: '23:00-1:00'
+        },
+        {
+            hour: 'Sửu',
+            time: '1:00-3:00'
+        },
+        {
+            hour: 'Dần',
+            time: '3:00-5:00'
+        },
+        {
+            hour: 'Mão',
+            time: '5:00-7:00'
+        },
+        {
+            hour: 'Thìn',
+            time: '7:00-9:00'
+        },
+        {
+            hour: 'Tỵ',
+            time: '9:00-11:00'
+        },
+        {
+            hour: 'Ngọ',
+            time: '11:00-13:00'
+        },
+        {
+            hour: 'Mùi',
+            time: '13:00-15:00'
+        },
+        {
+            hour: 'Thân',
+            time: '15:00-17:00'
+        },
+        {
+            hour: 'Dậu',
+            time: '17:00-19:00'
+        },
+        {
+            hour: 'Tuất',
+            time: '19:00-21:00'
+        },
+        {
+            hour: 'Hợi',
+            time: '21:00-23:00'
+        }
+    ];
+
+    const auspiciousIndices = [(dayChiIndex + 0) % 12, (dayChiIndex + 4) % 12,
+        (dayChiIndex + 6) % 12, (dayChiIndex + 8) % 12,
+        (dayChiIndex + 10) % 12
+    ];
+
+    return hours.filter((_, index) => auspiciousIndices.includes(index));
+}
+
+function updateAuspiciousHours() {
+    const hours = getAuspiciousHours(currentDate);
+    const hoursText = hours.map(h => `${h.hour} (${h.time})`).join(', ');
+    document.getElementById('auspiciousHours').textContent = hoursText;
+}
+
+function getStars(date) {
+    const lunar = getLunarDate(date);
+    const goodStars = [{
+            day: 1,
+            stars: ['Thiên Đức', 'Nguyệt Đức', 'Thiên Hỷ']
+        },
+        {
+            day: 2,
+            stars: ['Thiên Quý', 'Nguyệt Ân', 'Thiên Quan']
+        },
+        {
+            day: 3,
+            stars: ['Thiên Xá', 'Nguyệt Đức', 'Thiên Giải']
+        },
+    ];
+
+    const badStars = [{
+            day: 1,
+            stars: ['Thụ Tử', 'Không Phòng']
+        },
+        {
+            day: 2,
+            stars: ['Thiên Hình', 'Điệp Táng']
+        },
+        {
+            day: 3,
+            stars: ['Địa Phá', 'Hoang Vu']
+        },
+    ];
+
+    const dayIndex = (lunar.day - 1) % goodStars.length;
+    return {
+        good: goodStars[dayIndex].stars,
+        bad: badStars[dayIndex].stars
+    };
+}
+
+function updateStars() {
+    const stars = getStars(currentDate);
+    document.getElementById('stars').innerHTML = `
+        <p>Sao tốt: ${stars.good.join(', ')}</p>
+        <p>Sao xấu: ${stars.bad.join(', ')}</p>
+    `;
+}
+
+function getDirections(date) {
+    const lunar = getLunarDate(date);
+    const directions = [{
+            wealth: 'Đông',
+            joy: 'Nam'
+        },
+        {
+            wealth: 'Đông Nam',
+            joy: 'Tây'
+        },
+        {
+            wealth: 'Nam',
+            joy: 'Tây Bắc'
+        },
+        {
+            wealth: 'Tây Nam',
+            joy: 'Bắc'
+        },
+        {
+            wealth: 'Tây',
+            joy: 'Đông Bắc'
+        },
+        {
+            wealth: 'Tây Bắc',
+            joy: 'Đông'
+        },
+        {
+            wealth: 'Bắc',
+            joy: 'Đông Nam'
+        },
+        {
+            wealth: 'Đông Bắc',
+            joy: 'Nam'
+        }
+    ];
+
+    return directions[(lunar.day - 1) % directions.length];
+}
+
+function updateDirections() {
+    const directions = getDirections(currentDate);
+    document.getElementById('directions').textContent =
+        `Tài thần: ${directions.wealth}, Hỷ thần: ${directions.joy}`;
+}
+
+function getZodiacCompatibility(date) {
+    const lunar = getLunarDate(date);
+    const dayAnimal = CHI[(lunar.day - 1) % 12];
+
+    const compatibility = {
+        'Tý': {
+            harmony: ['Thân', 'Thìn'],
+            clash: ['Mão', 'Ngọ']
+        },
+        'Sửu': {
+            harmony: ['Tỵ', 'Dậu'],
+            clash: ['Thìn', 'Mùi']
+        },
+        'Dần': {
+            harmony: ['Ngọ', 'Tuất'],
+            clash: ['Tỵ', 'Thân']
+        },
+        'Mão': {
+            harmony: ['Mùi', 'Hợi'],
+            clash: ['Tý', 'Dậu']
+        },
+        'Thìn': {
+            harmony: ['Tý', 'Thân'],
+            clash: ['Sửu', 'Tuất']
+        },
+        'Tỵ': {
+            harmony: ['Sửu', 'Dậu'],
+            clash: ['Dần', 'Hợi']
+        },
+        'Ngọ': {
+            harmony: ['Dần', 'Tuất'],
+            clash: ['Tý', 'Mão']
+        },
+        'Mùi': {
+            harmony: ['Mão', 'Hợi'],
+            clash: ['Sửu', 'Tý']
+        },
+        'Thân': {
+            harmony: ['Tý', 'Thìn'],
+            clash: ['Dần', 'Tỵ']
+        },
+        'Dậu': {
+            harmony: ['Sửu', 'Tỵ'],
+            clash: ['Mão', 'Ngọ']
+        },
+        'Tuất': {
+            harmony: ['Dần', 'Ngọ'],
+            clash: ['Thìn', 'Mùi']
+        },
+        'Hợi': {
+            harmony: ['Mão', 'Mùi'],
+            clash: ['Tỵ', 'Thân']
+        }
+    };
+
+    return compatibility[dayAnimal];
+}
+
+function updateZodiac() {
+    const compatibility = getZodiacCompatibility(currentDate);
+    document.getElementById('zodiac').innerHTML = `
+        <p>Tuổi hợp: ${compatibility.harmony.join(', ')}</p>
+        <p>Tuổi khắc: ${compatibility.clash.join(', ')}</p>
+    `;
+}
+
+// Event management
+function loadEvents() {
+    const events = JSON.parse(localStorage.getItem('events') || '[]');
+    const solarEventList = document.getElementById('solarEventList');
+    const lunarEventList = document.getElementById('lunarEventList');
+    const upcomingEventList = document.getElementById('upcomingEventList');
+
+    solarEventList.innerHTML = '';
+    lunarEventList.innerHTML = '';
+    upcomingEventList.innerHTML = '';
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const thirtyDaysFromNow = new Date(today);
+    thirtyDaysFromNow.setDate(today.getDate() + 30);
+
+    // Tập hợp để theo dõi các sự kiện sắp tới đã hiển thị
+    const displayedUpcomingEvents = new Set();
+
+    events.forEach((event, index) => {
+        const isProtectedEvent = event.recurring ||
+            event.text === 'Mùng 1 âm lịch' ||
+            event.text === 'Ngày rằm';
+
+        const eventElement = document.createElement('div');
+        eventElement.className = 'event-item';
+
+        eventElement.innerHTML = `
+            <span>${event.text}</span>
+            <div>
+                ${!isProtectedEvent ? `
+                    <button onclick="editEvent(${index})">Sửa</button>
+                    <button onclick="deleteEvent(${index})">Xóa</button>
+                ` : ''}
+            </div>
+        `;
+
+        const eventDate = event.date ? new Date(event.date) : null;
+        let shouldDisplay = false;
+
+        if (event.type === 'solar' && eventDate) {
+            shouldDisplay = eventDate.getDate() === currentDate.getDate() &&
+                eventDate.getMonth() === currentDate.getMonth();
+            if (shouldDisplay) {
+                solarEventList.appendChild(eventElement.cloneNode(true));
+            }
+        } else if (event.type === 'lunar' || event.text.includes('âm lịch') || event.text === 'Ngày rằm') {
+            const lunarToday = getLunarDate(currentDate);
+            if (event.lunarDate) {
+                shouldDisplay = event.lunarDate.day === lunarToday.day &&
+                    event.lunarDate.month === lunarToday.month;
+            }
+            if (shouldDisplay) {
+                lunarEventList.appendChild(eventElement.cloneNode(true));
+            }
+        }
+
+        // Xử lý sự kiện sắp tới
+        if (eventDate && eventDate > currentDate &&
+            event.text !== 'Mùng 1 âm lịch' &&
+            event.text !== 'Ngày rằm') {
+            const thirtyDaysFromSelected = new Date(currentDate);
+            thirtyDaysFromSelected.setDate(currentDate.getDate() + 30);
+
+            if (eventDate <= thirtyDaysFromSelected) {
+                const eventKey = `${eventDate.toISOString()}-${event.text}`; // Tạo key duy nhất cho sự kiện
+                if (!displayedUpcomingEvents.has(eventKey)) { // Chỉ hiển thị nếu chưa có
+                    displayedUpcomingEvents.add(eventKey);
+                    const daysLeft = Math.ceil((eventDate - currentDate) / (1000 * 60 * 60 * 24));
+                    const upcomingElement = document.createElement('div');
+                    upcomingElement.className = 'event-item';
+                    upcomingElement.innerHTML = `
+                        <span>${eventDate.getDate()}/${eventDate.getMonth() + 1}: ${event.text} - 
+                        <span class="days-left">Còn ${daysLeft} ngày</span></span>
+                    `;
+                    upcomingEventList.appendChild(upcomingElement);
+                }
+            }
+        }
+    });
+}
+
+function addEvent() {
+    const input = document.getElementById('eventInput');
+    const text = input.value.trim();
+
+    if (text) {
+        const events = JSON.parse(localStorage.getItem('events') || '[]');
+        events.push({
+            text,
+            date: currentDate.toISOString()
+        });
+        localStorage.setItem('events', JSON.stringify(events));
+        input.value = '';
+        loadEvents();
+    }
+}
+
+function editEvent(index) {
+    const events = JSON.parse(localStorage.getItem('events') || '[]');
+    const newText = prompt('Sửa sự kiện:', events[index].text);
+
+    if (newText !== null) {
+        events[index].text = newText;
+        localStorage.setItem('events', JSON.stringify(events));
+        loadEvents();
+    }
+}
+
+function deleteEvent(index) {
+    const events = JSON.parse(localStorage.getItem('events') || '[]');
+    const event = events[index];
+
+    if (event.recurring ||
+        event.text === 'Mùng 1 âm lịch' ||
+        event.text === 'Ngày rằm') {
+        alert('Không thể xóa sự kiện mặc định hoặc sự kiện âm lịch');
+        return;
+    }
+
+    if (confirm('Bạn có chắc muốn xóa sự kiện này?')) {
+        events.splice(index, 1);
+        localStorage.setItem('events', JSON.stringify(events));
+        loadEvents();
+    }
+}
+
+// Default Vietnamese calendar events
+const DEFAULT_EVENTS = [
+    {
+        text: 'Tết Dương lịch',
+        month: 1,
+        day: 1,
+        type: 'solar'
+    },
+    {
+        text: 'Ngày Giải phóng miền Nam',
+        month: 4,
+        day: 30,
+        type: 'solar'
+    },
+    {
+        text: 'Ngày Quốc tế Lao động',
+        month: 5,
+        day: 1,
+        type: 'solar'
+    },
+    {
+        text: 'Ngày Quốc khánh',
+        month: 9,
+        day: 2,
+        type: 'solar'
+    },
+    {
+        text: 'Ngày Phụ nữ Việt Nam',
+        month: 10,
+        day: 20,
+        type: 'solar'
+    },
+    {
+        text: 'Ngày Nhà giáo Việt Nam',
+        month: 11,
+        day: 20,
+        type: 'solar'
+    },
+    {
+        text: 'Giáng sinh',
+        month: 12,
+        day: 25,
+        type: 'solar'
+    },
+    {
+        text: 'Tết Nguyên đán',
+        lunarMonth: 1,
+        lunarDay: 1,
+        type: 'lunar'
+    },
+    {
+        text: 'Tết Hàn thực',
+        lunarMonth: 3,
+        lunarDay: 3,
+        type: 'lunar'
+    },
+    {
+        text: 'Giỗ Tổ Hùng Vương',
+        lunarMonth: 3,
+        lunarDay: 10,
+        type: 'lunar'
+    },
+    {
+        text: 'Tết Đoan ngọ',
+        lunarMonth: 5,
+        lunarDay: 5,
+        type: 'lunar'
+    },
+    {
+        text: 'Lễ Vu lan',
+        lunarMonth: 7,
+        lunarDay: 15,
+        type: 'lunar'
+    },
+    {
+        text: 'Tết Trung thu',
+        lunarMonth: 8,
+        lunarDay: 15,
+        type: 'lunar'
+    },
+    {
+        text: 'Tết Thượng nguyên',
+        lunarMonth: 1,
+        lunarDay: 15,
+        type: 'lunar'
+    },
+    {
+        text: 'Tết Trung nguyên',
+        lunarMonth: 7,
+        lunarDay: 15,
+        type: 'lunar'
+    },
+    {
+        text: 'Tết Hạ nguyên',
+        lunarMonth: 10,
+        lunarDay: 15,
+        type: 'lunar'
+    }
+];
+
+function initializeDefaultEvents() {
+    const events = JSON.parse(localStorage.getItem('events') || '[]');
+    const thisYear = new Date().getFullYear();
+
+    DEFAULT_EVENTS.forEach(event => {
+        let eventExists = false;
+
+        // Kiểm tra xem sự kiện đã tồn tại chưa
+        if (event.type === 'solar') {
+            const eventDate = new Date(thisYear, event.month - 1, event.day);
+            eventExists = events.some(e => 
+                e.text === event.text && 
+                e.type === 'solar' && 
+                new Date(e.date).getTime() === eventDate.getTime()
+            );
+
+            if (!eventExists) {
+                events.push({
+                    text: event.text,
+                    date: eventDate.toISOString(),
+                    type: 'solar',
+                    recurring: true
+                });
+            }
+        } else if (event.type === 'lunar') {
+            const lunarDate = {
+                year: thisYear,
+                month: event.lunarMonth,
+                day: event.lunarDay
+            };
+            eventExists = events.some(e => 
+                e.text === event.text && 
+                e.type === 'lunar' && 
+                e.lunarDate && 
+                e.lunarDate.year === lunarDate.year && 
+                e.lunarDate.month === lunarDate.month && 
+                e.lunarDate.day === lunarDate.day
+            );
+
+            if (!eventExists) {
+                events.push({
+                    text: event.text,
+                    lunarDate: lunarDate,
+                    type: 'lunar',
+                    recurring: true
+                });
+            }
+        }
+    });
+
+    localStorage.setItem('events', JSON.stringify(events));
+}
+
+// Initialize the application when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+    initializeApp();
+    initializeDefaultEvents();
+});
+</script>
+</body>
+</html>
